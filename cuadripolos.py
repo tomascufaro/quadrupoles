@@ -4,7 +4,9 @@ import matplotlib.pyplot as plt
 from sympy import lambdify
 import pandas as pd
 import seaborn as sns
+
 sns.set()
+
 
 class Cuadripolo(object):
     """Clase para definir cuadripolos como representación de sistemas de silenciadores
@@ -39,8 +41,8 @@ class Cuadripolo(object):
         self.largo = largo
         self.Z_o = self.rho_o * c
         if tipo == 'helmholtz':
-            #sumo el largo del tubo? esto es así?
-            self.largo += np.square(self.s/np.pi)*0.82
+            # sumo el largo del tubo? esto es así?
+            self.largo += np.square(self.s / np.pi) * 0.82
             self.s1 = self.s
             self.s2 = None
             try:
@@ -71,7 +73,7 @@ class Cuadripolo(object):
             return print('Cuadripolo {} con parametros sección, ' \
                          'sección de ingreso {}' \
                          'sección de salida {}' \
-                         'sección media {}' \ 
+                         'sección media {}' \
                          'largo {}'.format(self.cuadri, self.s1, self.s2, self.s, self.largo))
         if self.tipo == 'complejo':
             return 'Cuadripolo de sistema multiple {}'.format(self.cuadri)
@@ -85,7 +87,7 @@ class Cuadripolo(object):
         # de los coeficientes
         # tenemos un problema con k, hay un k para cada caso.
         if self.tipo == 'helmholtz':
-            k = (self.rho_o**2*self.s**2)/self.vol
+            k = (self.rho_o ** 2 * self.s ** 2) / self.vol
         else:
             k = 2 * np.pi * self.f / self.c
         if (self.tipo == 'camara') | (self.tipo == 'tubo_recto'):
@@ -111,7 +113,7 @@ class Cuadripolo(object):
             try:
                 A = 1
                 B = 0
-                C = ((tan(k * self.largo) ** (-1)) * self.Z_o / (self.s1 - self.s))**(-1)
+                C = ((tan(k * self.largo) ** (-1)) * self.Z_o / (self.s1 - self.s)) ** (-1)
                 D = 1
                 self.cuadri = [[A, B, ], [C, D]]
             except Exception as e:
@@ -130,7 +132,7 @@ class Cuadripolo(object):
             try:
                 self.tl = 20 * log(abs(
                     0.5 * (A + (self.Z_o * C / self.s2) + (B * self.s1 / self.Z_o) + (
-                                D * self.s1 / self.s2)))) + 10 * log(
+                            D * self.s1 / self.s2)))) + 10 * log(
                     self.s1 / self.s2)
                 self.tl_ = lambdify(self.f, self.tl, ["numpy"])
             except ValueError:
@@ -168,13 +170,13 @@ class Cuadripolo(object):
 
     def plot_tl(self, values=np.linspace(0, 10000, 10000)):
         if values is not None:
-            #fig = plt.figure(figsize=(15, 10))
-            #ax = fig.add_subplot(111)
-            #ax.plot(values, self.tl_(values))
-            #ax.set(title='TL en función del nivel de frecuencia obtenido a través de un cuadripolo de un sistema: {}'.format(self.tipo),
+            # fig = plt.figure(figsize=(15, 10))
+            # ax = fig.add_subplot(111)
+            # ax.plot(values, self.tl_(values))
+            # ax.set(title='TL en función del nivel de frecuencia obtenido a través de un cuadripolo de un sistema: {}'.format(self.tipo),
             #       ylabel='Dbs',
             #       xlabel='Frequency')
-            #ax.legend(loc='best')
+            # ax.legend(loc='best')
             data = np.array([[self.tl_(values)], [values]])
             data = pd.DataFrame(data, columns=['TL [dbs]', 'Frecuencia [Hz]'])
             sns.lineplot(x='Frecuencia [Hz]', y='TL [dbs]', data=data)
