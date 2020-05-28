@@ -73,8 +73,7 @@ class Cuadripolo(object):
             return print('Cuadripolo {} con parametros sección, ' \
                          'sección de ingreso {}' \
                          'sección de salida {}' \
-                         'sección media {}' \
-                         'largo {}'.format(self.cuadri, self.s1, self.s2, self.s, self.largo))
+                         'sección media {} largo {}'.format(self.cuadri, self.s1, self.s2, self.s, self.largo))
         if self.tipo == 'complejo':
             return 'Cuadripolo de sistema multiple {}'.format(self.cuadri)
 
