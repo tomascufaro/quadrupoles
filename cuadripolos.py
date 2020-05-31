@@ -41,28 +41,30 @@ class Cuadripolo(object):
         self.s2 = s2
         self.vol = vol
         self.tipo = tipo
+        if self.tipo == 'tubo_recto':
+            self.s2 = self.s1 = self.s
         self.f = symbols('f')
         self.largo = largo
         self.Z_o = self.rho_o * c
-        if tipo == 'helmholtz':
+        self.k = (2 * np.pi * self.f) / self.c
+        self.cuadri = [[0, 0], [0, 0]]
+        self.tl = None
+        self.tl_ = None
+        self.Z_in = Z_in
+        if self.tipo == 'helmholtz':
+            self.k = (self.rho_o * (self.c ** 2) * (self.s ** 2)) / self.vol
             # sumo el largo del tubo? esto es así?
             self.largo += np.square(self.s / np.pi) * 0.82
             #las secciones son todas las del tubo de entrada ?
             self.s1 = self.s
             self.s2 = None
             try:
-                self.Z_in = self.rho_o * (((self.largo * 2 * np.pi * self.f) / self.s) - (
-                        (self.c ** 2) / (self.vol * 2 * np.pi * self.f)))
+                self.Z_in = self.rho_o * (((self.largo * 2 * np.pi * self.f) / self.s) - ((self.c ** 2) / (self.vol * 2 * np.pi * self.f)))
             except Exception as e:
-                raise print(e,
-                            'el volumen y la sección del tubo_recto de ingreso deben estar definidas para el resonador de hemholtz')
-        else:
-            self.Z_in = Z_in
-        if self.tipo == 'tubo_recto':
-            self.s2 = self.s1 = self.s
-        self.cuadri = [[0, 0], [0, 0]]
-        self.tl = None
-        self.tl_ = None
+                print(e, 'no se pudo crear Z_in, por favor ingresar los parametros correctamente')
+        if self.tipo == 'tubo_cerrado':
+            self.Z_in = self.Z_o * (tan(self.k*self.largo)**(-1))
+
 
     def __getitem__(self, tup):
         i, j = tup
@@ -75,10 +77,7 @@ class Cuadripolo(object):
 
     def __repr__(self):
         if self.tipo != 'complejo':
-            return print('Cuadripolo {} con parametros sección, ' \
-                         'sección de ingreso {}' \
-                         'sección de salida {}' \
-                         'sección media {} largo {}'.format(self.cuadri, self.s1, self.s2, self.s, self.largo))
+            return print('Cuadripolo {} con parametros sección, de tipo {}'.format(self.cuadri, self.tipo))
         if self.tipo == 'complejo':
             return 'Cuadripolo de sistema multiple {}'.format(self.cuadri)
 
@@ -89,22 +88,17 @@ class Cuadripolo(object):
             de seccion)"""
         # mando en función de f, cuando evaluo ? Me interesa el valor numerico
         # de los coeficientes
-        # tenemos un problema con k, hay un k para cada caso.
-        if self.tipo == 'helmholtz':
-            k = (self.rho_o * (self.c ** 2) * (self.s ** 2)) / self.vol
-        else:
-            k = 2 * np.pi * self.f / self.c
         if (self.tipo == 'camara') | (self.tipo == 'tubo_recto'):
             try:
-                A = cos(k * self.largo)
-                B = (self.Z_o / self.s) * sin(k * self.largo)
-                C = (self.s / self.Z_o) * sin(k * self.largo)
-                D = cos(k * self.largo)
+                A = cos(self.k * self.largo)
+                B = (self.Z_o / self.s) * sin(self.k * self.largo)
+                C = (self.s / self.Z_o) * sin(self.k * self.largo)
+                D = cos(self.k * self.largo)
                 self.cuadri = [[A, B, ], [C, D]]
             except Exception as e:
                 print(e,
                       'se deben definir los valores adecuados para obtener los coeficientesn camara o tubo_recto, s, Z_o, largo, ')
-        if (self.tipo == 'Z_in') | (self.tipo == 'helmholtz'):
+        if (self.tipo == 'Z_in') | (self.tipo == 'helmholtz') | (self.tipo == 'tubo_cerrado'):
             try:
                 A = 1
                 B = 0
@@ -117,7 +111,7 @@ class Cuadripolo(object):
             try:
                 A = 1
                 B = 0
-                C = ((tan(k * self.largo) ** (-1)) * self.Z_o / (self.s1 - self.s)) ** (-1)
+                C = ((tan(self.k * self.largo) ** (-1)) * self.Z_o / (self.s1 - self.s)) ** (-1)
                 D = 1
                 self.cuadri = [[A, B, ], [C, D]]
             except Exception as e:
