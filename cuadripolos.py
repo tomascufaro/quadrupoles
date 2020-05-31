@@ -16,16 +16,20 @@ class Cuadripolo(object):
         la clase simplemente como contenedor de un cuadripolo. Con el fin de poder multiplicar y
         guardar cuadripolos que reprensenten sistemas complejos
         s : float. seción interior.
-        largo : Largo del tubo_recto de la camara, etc...
+        largo : Largo del tubo_recto de la camara, etc... Caso de ser helmholtz el largo es del tubo de entrada
         s1: float. sección de entrada
         s2: float. sección de salida
         c : float, 345 [m/s]
-        rho_o : float, 1 [kg/m3]. Revisar si esta bien este kilogramo
-        tipo : str. camara, tubo_recto, helmholtz, Z_in, extension_expansion
+        rho_o : float, 1,225 [kg/m3]. Revisar si esta bien este kilogramo
+        tipo : str. El tipo de elemento fundamental del silenciador
+                    que va a reprenstar el cuadripolo:
+                    camara, tubo_recto, helmholtz, extension_expansion, tubo_cerrado, Z_in.
+                    En caso de que el cuadripolo sea producto de la multiplicación de varios cuadripolos el
+                    tipo va a ser 'complejo' en relación a que representa una estructura de silenciador compleja y no fundamental
         Z_in (parametro): si en tipo se usa Z_in, Z_in debe ser definido como una función
                           sympy dependiente de la variable "f" (frecuencia). De otra manera no
                           va a ser posible evaluarla.
-        vol: int [m3], volumen de resonador de helmholtz
+        vol: int [m3], volumen de resonador de helmholtz.
     """
 
     def __init__(self, s=None, largo=None, s1=None, s2=None, c=345, rho_o=1.225, tipo='complejo', vol=None, Z_in=None):
@@ -43,6 +47,7 @@ class Cuadripolo(object):
         if tipo == 'helmholtz':
             # sumo el largo del tubo? esto es así?
             self.largo += np.square(self.s / np.pi) * 0.82
+            #las secciones son todas las del tubo de entrada ?
             self.s1 = self.s
             self.s2 = None
             try:
@@ -86,7 +91,7 @@ class Cuadripolo(object):
         # de los coeficientes
         # tenemos un problema con k, hay un k para cada caso.
         if self.tipo == 'helmholtz':
-            k = (self.rho_o ** 2 * self.s ** 2) / self.vol
+            k = (self.rho_o * (self.c ** 2) * (self.s ** 2)) / self.vol
         else:
             k = 2 * np.pi * self.f / self.c
         if (self.tipo == 'camara') | (self.tipo == 'tubo_recto'):
@@ -169,15 +174,7 @@ class Cuadripolo(object):
 
     def plot_tl(self, values=np.linspace(0, 10000, 10000)):
         if values is not None:
-            # fig = plt.figure(figsize=(15, 10))
-            # ax = fig.add_subplot(111)
-            # ax.plot(values, self.tl_(values))
-            # ax.set(title='TL en función del nivel de frecuencia obtenido a través de un cuadripolo de un sistema: {}'.format(self.tipo),
-            #       ylabel='Dbs',
-            #       xlabel='Frequency')
-            # ax.legend(loc='best')
-            data = np.array([[self.tl_(values)], [values]])
-            data = pd.DataFrame(data, columns=['TL [dbs]', 'Frecuencia [Hz]'])
+            data = pd.DataFrame({'TL [dbs]':self.tl_(values), 'Frecuencia [Hz]':values})
             sns.lineplot(x='Frecuencia [Hz]', y='TL [dbs]', data=data)
         else:
             plot_ = plotting.plot(self.tl, range=(self.f, 0, 150))
