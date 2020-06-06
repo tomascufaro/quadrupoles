@@ -134,8 +134,6 @@ class Cuadripolo(object):
         C = self.cuadri[1][0]
         D = self.cuadri[1][1]
         if self.s1 != self.s2:
-            print('entre bien')
-            print('s2={} s1={}'.format(self.s2, self.s1))
             try:
                 self.tl = 20 * log(abs(
                     0.5 * (A + (self.Z_o * C / self.s1) + (B * self.s2 / self.Z_o) + (
@@ -182,7 +180,7 @@ class Cuadripolo(object):
             fig, ax = plt.subplots()
             ax.plot(values, self.tl_(values))
             ax.set(xlabel='Frecuencia [Hz]', ylabel='TL [Dbs]',
-                   title='Gráfico de TL en función de Frecuencia')
+                   title='Gráfico de TL en función de Frecuencia para: {}'.format(self.tipo))
             plt.show()
         else:
             plot_ = plotting.plot(self.tl, range=(self.f, 0, 150))
