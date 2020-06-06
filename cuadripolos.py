@@ -2,9 +2,7 @@ import numpy as np
 from sympy import *
 import matplotlib.pyplot as plt
 from sympy import lambdify
-import pandas as pd
 import seaborn as sns
-
 sns.set()
 
 
@@ -25,7 +23,10 @@ class Cuadripolo(object):
                     que va a reprenstar el cuadripolo:
                     camara, tubo_recto, helmholtz, extension_expansion, tubo_cerrado, Z_in.
                     En caso de que el cuadripolo sea producto de la multiplicación de varios cuadripolos el
-                    tipo va a ser 'complejo' en relación a que representa una estructura de silenciador compleja y no fundamental
+                    tipo va a ser 'complejo' en relación a que representa una estructura de silenciador compleja y no
+                    fundamental.
+                    Algunas aclaraciones: En extension_expansion, s debe ser la seccioón de salida (grande) y s1 debe
+                                        ser la sección de entrada, pequena.
         Z_in (parametro): si en tipo se usa Z_in, Z_in debe ser definido como una función
                           sympy dependiente de la variable "f" (frecuencia). De otra manera no
                           va a ser posible evaluarla.
@@ -41,8 +42,6 @@ class Cuadripolo(object):
         self.s2 = s2
         self.vol = vol
         self.tipo = tipo
-        if self.tipo == 'tubo_recto':
-            self.s2 = self.s1 = self.s
         self.f = symbols('f')
         self.largo = largo
         self.Z_o = self.rho_o * c
@@ -51,20 +50,28 @@ class Cuadripolo(object):
         self.tl = None
         self.tl_ = None
         self.Z_in = Z_in
+        if self.tipo == 'tubo_recto':
+            self.s2 = self.s1 = self.s
+            self.largo += np.square(self.s / np.pi) * 0.61
+        if self.tipo == 'tubo_cerrado':
+            self.s2 = self.s1 = self.s
+            self.largo += np.square(self.s / np.pi) * 0.82
+        if self.tipo == 'extension_expansion':
+            self.s2 = self.s1
+            self.s1 = self.s
+            self.largo += np.square(self.s2 / np.pi) * 0.61
         if self.tipo == 'helmholtz':
             self.k = (self.rho_o * (self.c ** 2) * (self.s ** 2)) / self.vol
             # sumo el largo del tubo? esto es así?
-            self.largo += np.square(self.s / np.pi) * 0.82
+            self.largo += (np.square(self.s / np.pi) * 0.82) + (np.square(self.s / np.pi) * 0.61)
             #las secciones son todas las del tubo de entrada ?
-            self.s1 = self.s
-            self.s2 = None
+            self.s2 = self.s1 = self.s
             try:
                 self.Z_in = self.rho_o * (((self.largo * 2 * np.pi * self.f) / self.s) - ((self.c ** 2) / (self.vol * 2 * np.pi * self.f)))
             except Exception as e:
                 print(e, 'no se pudo crear Z_in, por favor ingresar los parametros correctamente')
         if self.tipo == 'tubo_cerrado':
             self.Z_in = self.Z_o * (tan(self.k*self.largo)**(-1))
-
 
     def __getitem__(self, tup):
         i, j = tup
@@ -111,7 +118,7 @@ class Cuadripolo(object):
             try:
                 A = 1
                 B = 0
-                C = ((tan(self.k * self.largo) ** (-1)) * self.Z_o / (self.s1 - self.s)) ** (-1)
+                C = ((tan(self.k * self.largo) ** (-1)) * self.Z_o / (self.s2 - self.s1)) ** (-1)
                 D = 1
                 self.cuadri = [[A, B, ], [C, D]]
             except Exception as e:
@@ -126,12 +133,14 @@ class Cuadripolo(object):
         B = self.cuadri[0][1]
         C = self.cuadri[1][0]
         D = self.cuadri[1][1]
-        if self.s2:
+        if self.s1 != self.s2:
+            print('entre bien')
+            print('s2={} s1={}'.format(self.s2, self.s1))
             try:
                 self.tl = 20 * log(abs(
-                    0.5 * (A + (self.Z_o * C / self.s2) + (B * self.s1 / self.Z_o) + (
-                            D * self.s1 / self.s2)))) + 10 * log(
-                    self.s1 / self.s2)
+                    0.5 * (A + (self.Z_o * C / self.s1) + (B * self.s2 / self.Z_o) + (
+                            D * self.s2 / self.s1)))) + 10 * log(
+                    self.s2 / self.s1)
                 self.tl_ = lambdify(self.f, self.tl, ["numpy"])
             except ValueError:
                 print('deben ser definidos los parametros correctos para obtener tl s1 y s2')
@@ -166,10 +175,15 @@ class Cuadripolo(object):
         c.tipo = 'complejo'
         return c
 
-    def plot_tl(self, values=np.linspace(0, 10000, 10000)):
+    def plot_tl(self, values=np.arange(50, 6000, 10)):
         if values is not None:
-            data = pd.DataFrame({'TL [dbs]':self.tl_(values), 'Frecuencia [Hz]':values})
-            sns.lineplot(x='Frecuencia [Hz]', y='TL [dbs]', data=data)
+            # data = pd.DataFrame({'TL [dbs]':self.tl_(values), 'Frecuencia [Hz]':values})
+            # sns.lineplot(x='Frecuencia [Hz]', y='TL [dbs]', data=data)
+            fig, ax = plt.subplots()
+            ax.plot(values, self.tl_(values))
+            ax.set(xlabel='Frecuencia [Hz]', ylabel='TL [Dbs]',
+                   title='Gráfico de TL en función de Frecuencia')
+            plt.show()
         else:
             plot_ = plotting.plot(self.tl, range=(self.f, 0, 150))
             plot_.show()
