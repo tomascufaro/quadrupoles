@@ -25,8 +25,11 @@ class Cuadripolo(object):
                     En caso de que el cuadripolo sea producto de la multiplicación de varios cuadripolos el
                     tipo va a ser 'complejo' en relación a que representa una estructura de silenciador compleja y no
                     fundamental.
-                    Algunas aclaraciones: En extension_expansion, s debe ser la seccioón de salida (grande) y s1 debe
-                                        ser la sección de entrada, pequena.
+                    Algunas aclaraciones: Extension expansion. S = seccion grande, s1 = seccion chica del conducto
+                                          Helmholtz. S = seccion de parte acoplada, s1= seccion del cuello del resonador
+                                          camara. s1= seccion de entrada. s= seccion de la camara, s2= seccion de salida
+                                          tubo_recto. todas las secciones son iguales.
+
         Z_in (parametro): si en tipo se usa Z_in, Z_in debe ser definido como una función
                           sympy dependiente de la variable "f" (frecuencia). De otra manera no
                           va a ser posible evaluarla.
@@ -45,11 +48,12 @@ class Cuadripolo(object):
         self.f = symbols('f')
         self.largo = largo
         self.Z_o = self.rho_o * c
-        self.k = (2 * np.pi * self.f) / self.c
         self.cuadri = [[0, 0], [0, 0]]
         self.tl = None
         self.tl_ = None
         self.Z_in = Z_in
+        self._w = 2*np.pi*self.f
+        self._k = self._w / self.c
         if self.tipo == 'tubo_recto':
             self.s2 = self.s1 = self.s
             self.largo += np.square(self.s / np.pi) * 0.61
@@ -57,21 +61,28 @@ class Cuadripolo(object):
             self.s2 = self.s1 = self.s
             self.largo += np.square(self.s / np.pi) * 0.82
         if self.tipo == 'extension_expansion':
+            # por motivos de una aplicación más legible en función a lo trabajado
+            # analíticamente se hacen estos cambios de variables. Si alguién lee esto que está bastante feito
+            # sepa disculpar :)
+            self.s2 = None
+            assert self.s1, 's1 tiene que estar definido es la sección del conducto'
+            assert self.s, 's tiene que estar definido es la sección acoplada'
             self.s2 = self.s1
             self.s1 = self.s
             self.largo += np.square(self.s2 / np.pi) * 0.61
         if self.tipo == 'helmholtz':
-            self.k = (self.rho_o * (self.c ** 2) * (self.s ** 2)) / self.vol
-            # sumo el largo del tubo? esto es así?
-            self.largo += (np.square(self.s / np.pi) * 0.82) + (np.square(self.s / np.pi) * 0.61)
-            #las secciones son todas las del tubo de entrada ?
-            self.s2 = self.s1 = self.s
+            self.s2 = None
+            assert self.s1, 's1 tiene que estar definido es la sección del cuello'
+            assert self.s, 's tiene que estar definido es la sección acoplada'
+            self.s2 = self.s
+            self._k = (self.rho_o * (self.c ** 2) * (self.s1 ** 2)) / self.vol
+            self.largo += (np.square(self.s1 / np.pi) * 0.82) + (np.square(self.s1 / np.pi) * 0.61)
             try:
-                self.Z_in = self.rho_o * (((self.largo * 2 * np.pi * self.f) / self.s) - ((self.c ** 2) / (self.vol * 2 * np.pi * self.f)))
+                self.Z_in = self.rho_o * (((self.largo * self._w) / self.s1) - ((self.c ** 2) / (self.vol*self._w)))
             except Exception as e:
                 print(e, 'no se pudo crear Z_in, por favor ingresar los parametros correctamente')
         if self.tipo == 'tubo_cerrado':
-            self.Z_in = self.Z_o * (tan(self.k*self.largo)**(-1))
+            self.Z_in = self.Z_o * (tan(self._k*self.largo)**(-1))
 
     def __getitem__(self, tup):
         i, j = tup
@@ -97,10 +108,10 @@ class Cuadripolo(object):
         # de los coeficientes
         if (self.tipo == 'camara') | (self.tipo == 'tubo_recto'):
             try:
-                A = cos(self.k * self.largo)
-                B = (self.Z_o / self.s) * sin(self.k * self.largo)
-                C = (self.s / self.Z_o) * sin(self.k * self.largo)
-                D = cos(self.k * self.largo)
+                A = cos(self._k * self.largo)
+                B = (self.Z_o / self.s) * sin(self._k * self.largo)
+                C = (self.s / self.Z_o) * sin(self._k * self.largo)
+                D = cos(self._k * self.largo)
                 self.cuadri = [[A, B, ], [C, D]]
             except Exception as e:
                 print(e,
@@ -109,7 +120,7 @@ class Cuadripolo(object):
             try:
                 A = 1
                 B = 0
-                C = self.s / self.Z_in
+                C = self.s1 / self.Z_in
                 D = 1
                 self.cuadri = [[A, B, ], [C, D]]
             except Exception as e:
@@ -118,7 +129,7 @@ class Cuadripolo(object):
             try:
                 A = 1
                 B = 0
-                C = ((tan(self.k * self.largo) ** (-1)) * self.Z_o / (self.s2 - self.s1)) ** (-1)
+                C = ((tan(self._k * self.largo) ** (-1)) * self.Z_o / (self.s2 - self.s1)) ** (-1)
                 D = 1
                 self.cuadri = [[A, B, ], [C, D]]
             except Exception as e:
@@ -135,10 +146,10 @@ class Cuadripolo(object):
         D = self.cuadri[1][1]
         if self.s1 != self.s2:
             try:
-                self.tl = 20 * log(abs(
+                self.tl = (20 * log(abs(
                     0.5 * (A + (self.Z_o * C / self.s1) + (B * self.s2 / self.Z_o) + (
-                            D * self.s2 / self.s1)))) + 10 * log(
-                    self.s2 / self.s1)
+                            D * self.s2 / self.s1))))) + (10 * log(
+                    self.s2 / self.s1))
                 self.tl_ = lambdify(self.f, self.tl, ["numpy"])
             except ValueError:
                 print('deben ser definidos los parametros correctos para obtener tl s1 y s2')
