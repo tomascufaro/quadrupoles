@@ -36,7 +36,7 @@ class Cuadripolo(object):
         vol: int [m3], volumen de resonador de helmholtz.
     """
 
-    def __init__(self, s=None, largo=None, s1=None, s2=None, c=345, rho_o=1.225, tipo='complejo', vol=None, Z_in=None):
+    def __init__(self, s=None, largo=None, s1=None, s2=None, c=345, rho_o=1.205, tipo='complejo', vol=None, Z_in=None):
         # ninguna propiedad va a ser privada por lo cual no necesitamos uso de getters o setters
         self.c = c
         self.rho_o = rho_o
@@ -78,7 +78,8 @@ class Cuadripolo(object):
             self._k = (self.rho_o * (self.c ** 2) * (self.s1 ** 2)) / self.vol
             self.largo += (np.square(self.s1 / np.pi) * 0.82) + (np.square(self.s1 / np.pi) * 0.61)
             try:
-                self.Z_in = self.rho_o * (((self.largo * self._w) / self.s1) - ((self.c ** 2) / (self.vol*self._w)))
+                # multiplicamos por la superficie del cuello para que se p/u y usarlo en cuadripolos
+                self.Z_in = self.s1 * self.rho_o * (((self.largo * self._w) / self.s1) - ((self.c ** 2) / (self.vol*self._w)))
             except Exception as e:
                 print(e, 'no se pudo crear Z_in, por favor ingresar los parametros correctamente')
         if self.tipo == 'tubo_cerrado':
@@ -147,9 +148,7 @@ class Cuadripolo(object):
         if self.s1 != self.s2:
             try:
                 self.tl = (20 * log(abs(
-                    0.5 * (A + (self.Z_o * C / self.s1) + (B * self.s2 / self.Z_o) + (
-                            D * self.s2 / self.s1))))) + (10 * log(
-                    self.s2 / self.s1))
+                    0.5 * (A + ((self.Z_o * C)/self.s1) + ((B*self.s2)/self.Z_o) + ((D * self.s2) / self.s1))))) + (10*log(self.s2/self.s1))
                 self.tl_ = lambdify(self.f, self.tl, ["numpy"])
             except ValueError:
                 print('deben ser definidos los parametros correctos para obtener tl s1 y s2')
